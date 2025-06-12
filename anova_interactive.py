@@ -405,9 +405,9 @@ class AnovaController:
     async def start_oven_sous_vide_v1(self):
         """Start sous vide cooking on APO v1 device"""
         try:
-            temp_f = float(input("Enter target temperature (°F, max 200): "))
-            if temp_f > 200:
-                print("❌ Temperature too high. Maximum is 200°F for wet bulb sous vide.")
+            temp_f = float(input("Enter target temperature (°F, max 212): "))
+            if temp_f > 212:
+                print("❌ Temperature too high. Maximum is 212°F for wet bulb sous vide.")
                 return
             temp_c = (temp_f - 32) * 5/9
             
@@ -492,9 +492,9 @@ class AnovaController:
     async def start_oven_roast(self):
         """Start roasting on APO device"""
         try:
-            temp = float(input("Enter roasting temperature (°C, max 230): "))
-            if temp > 230:
-                print("❌ Temperature too high. Maximum is 230°C for roasting.")
+            temp = float(input("Enter roasting temperature (°C, max 250): "))
+            if temp > 250:
+                print("❌ Temperature too high. Maximum is 250°C for roasting.")
                 return
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
@@ -566,9 +566,9 @@ class AnovaController:
     async def start_oven_roast_v1(self):
         """Start roasting on APO v1 device"""
         try:
-            temp_f = float(input("Enter roasting temperature (°F, max 450): "))
-            if temp_f > 450:
-                print("❌ Temperature too high. Maximum is 450°F for roasting.")
+            temp_f = float(input("Enter roasting temperature (°F, max 482): "))
+            if temp_f > 482:
+                print("❌ Temperature too high. Maximum is 482°F for roasting.")
                 return
             temp_c = (temp_f - 32) * 5/9
             
@@ -645,9 +645,9 @@ class AnovaController:
     async def start_oven_steam(self):
         """Start steam cooking on APO device"""
         try:
-            temp = float(input("Enter temperature (°C, max 100): "))
-            if temp > 100:
-                print("❌ Temperature too high. Maximum is 100°C for steam cooking.")
+            temp = float(input("Enter temperature (°C, max 250): "))
+            if temp > 250:
+                print("❌ Temperature too high. Maximum is 250°C for steam cooking.")
                 return
             humidity = int(input("Enter humidity percentage (0-100): "))
             if humidity < 0 or humidity > 100:
@@ -729,9 +729,9 @@ class AnovaController:
     async def start_oven_steam_v1(self):
         """Start steam cooking on APO v1 device"""
         try:
-            temp_f = float(input("Enter temperature (°F, max 212): "))
-            if temp_f > 212:
-                print("❌ Temperature too high. Maximum is 212°F for steam cooking.")
+            temp_f = float(input("Enter temperature (°F, max 482): "))
+            if temp_f > 482:
+                print("❌ Temperature too high. Maximum is 482°F for steam cooking.")
                 return
             temp_c = (temp_f - 32) * 5/9
             humidity = int(input("Enter humidity percentage (0-100): "))
