@@ -390,7 +390,7 @@ class AnovaController:
                         "cookableId": "",
                         "title": "",
                         "type": self.selected_device["device_type"],
-                        "originSource": "android",
+                        "originSource": "api",
                         "cookableType": "manual"
                     },
                     "type": "CMD_APO_START"
@@ -551,7 +551,7 @@ class AnovaController:
                         "cookableId": "",
                         "title": "",
                         "type": self.selected_device["device_type"],
-                        "originSource": "android",
+                        "originSource": "api",
                         "cookableType": "manual"
                     },
                     "type": "CMD_APO_START"
@@ -714,7 +714,7 @@ class AnovaController:
                         "cookableId": "",
                         "title": "",
                         "type": self.selected_device["device_type"],
-                        "originSource": "android",
+                        "originSource": "api",
                         "cookableType": "manual"
                     },
                     "type": "CMD_APO_START"
