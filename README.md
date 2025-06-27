@@ -20,6 +20,7 @@ Interactive Python terminal for controlling Anova WiFi devices including Precisi
 ### 1. Install Python
 
 **macOS:**
+
 ```bash
 # Using Homebrew (recommended)
 brew install python
@@ -30,12 +31,14 @@ python3 --version
 ```
 
 **Windows:**
+
 ```bash
 # Download from python.org and install
 # Make sure to check "Add Python to PATH" during installation
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt update
 sudo apt install python3 python3-pip
@@ -44,6 +47,7 @@ sudo apt install python3 python3-pip
 ### 2. Install Required Packages
 
 **macOS (with modern Python/Homebrew):**
+
 ```bash
 # Create a virtual environment (recommended)
 python3 -m venv anova_env
@@ -55,6 +59,7 @@ pip install websockets
 ```
 
 **Windows/Linux:**
+
 ```bash
 pip install websockets
 ```
@@ -95,26 +100,29 @@ deactivate
 ### Menu Options
 
 **For Precision Cookers (APC):**
+
 1. Show message stream - View real-time device communications
 2. Start sous vide cook - Begin cooking with temperature and timer
 3. Stop cooking - Stop current cooking session
 4. Set temperature unit - Change between Celsius/Fahrenheit
-5. Export telemetry data - Download cooking data
-0. Exit
+5. Export telemetry data - Download cooking data (returns an array of urls)
+6. Exit
 
 **For Precision Ovens (APO):**
+
 1. Show message stream - View real-time device communications
 2. Start sous vide cook (wet bulb) - Sous vide mode in oven
 3. Start roasting (dry bulb) - Traditional roasting
 4. Start steam cooking - Steam cooking with humidity control
 5. Stop cooking - Stop current cooking session
 6. Set temperature unit - Change between Celsius/Fahrenheit
-7. Export telemetry data - Download cooking data
-0. Exit
+7. Export telemetry data - Download cooking data (returns an array of urls)
+8. Exit
 
 ## Troubleshooting
 
 **"websockets module not found" (macOS):**
+
 ```bash
 # Try these commands in order:
 pip3 install websockets
@@ -125,15 +133,18 @@ python3 -m pip install --user websockets
 ```
 
 **"Invalid token format":**
+
 - Make sure your token starts with `anova-`
 - Get a new token from the Anova Oven app
 
 **"No devices found":**
+
 - Ensure your devices are connected to WiFi
 - Make sure devices are paired with your Anova account
 - Try refreshing the app and generating a new token
 
 **Connection issues:**
+
 - Check your internet connection
 - Verify your devices are online in the Anova app
 - Try restarting the script

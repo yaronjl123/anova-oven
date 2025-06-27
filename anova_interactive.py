@@ -21,6 +21,7 @@ class AnovaController:
         self.device_type = None
         self.message_history = []
         self.listener_task = None
+        self.temperature_unit = "C"
 
     async def connect(self, token):
         """Connect to Anova websocket with authentication"""
@@ -294,17 +295,29 @@ class AnovaController:
                 "requestId": self.generate_uuid()
             }
         
-        await self.send_command_and_wait_for_response(command)
+        result = await self.send_command_and_wait_for_response(command)
+        if result:
+            self.temperature_unit = unit
+            print(f"✅ Temperature unit preference saved: {unit}")
 
     async def start_sous_vide_cook(self):
         """Start cooking on APC device"""
         try:
-            temp = float(input("Enter target temperature (°C, max 95): "))
-            if temp > 95:
+            temp_unit = self.temperature_unit
+            max_temp = 95 if temp_unit == "C" else 203
+            temp = float(input(f"Enter target temperature (°{temp_unit}, max {max_temp}): "))
+            
+            if temp_unit == "C" and temp > 95:
                 print("❌ Temperature too high. Maximum is 95°C for sous vide.")
                 return
+            elif temp_unit == "F" and temp > 203:
+                print("❌ Temperature too high. Maximum is 203°F for sous vide.")
+                return
+            
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
+            
+            temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
             
             command = {
                 "command": "CMD_APC_START",
@@ -312,7 +325,7 @@ class AnovaController:
                 "payload": {
                     "cookerId": self.selected_device["id"],
                     "type": self.selected_device["device_type"],
-                    "targetTemperature": temp,
+                    "targetTemperature": temp_celsius,
                     "unit": "C",
                     "timer": timer_seconds
                 }
@@ -325,12 +338,21 @@ class AnovaController:
     async def start_oven_sous_vide(self):
         """Start sous vide cooking on APO device"""
         try:
-            temp = float(input("Enter target temperature (°C, max 100): "))
-            if temp > 100:
+            temp_unit = self.temperature_unit
+            max_temp = 100 if temp_unit == "C" else 212
+            temp = float(input(f"Enter target temperature (°{temp_unit}, max {max_temp}): "))
+            
+            if temp_unit == "C" and temp > 100:
                 print("❌ Temperature too high. Maximum is 100°C for wet bulb sous vide.")
                 return
+            elif temp_unit == "F" and temp > 212:
+                print("❌ Temperature too high. Maximum is 212°F for wet bulb sous vide.")
+                return
+            
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
+            
+            temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
             
             command = {
                 "command": "CMD_APO_START",
@@ -363,7 +385,7 @@ class AnovaController:
                                         "mode": "wet",
                                         "wet": {
                                             "setpoint": {
-                                                "celsius": temp
+                                                "celsius": temp_celsius
                                             }
                                         }
                                     },
@@ -492,12 +514,21 @@ class AnovaController:
     async def start_oven_roast(self):
         """Start roasting on APO device"""
         try:
-            temp = float(input("Enter roasting temperature (°C, max 250): "))
-            if temp > 250:
+            temp_unit = self.temperature_unit
+            max_temp = 250 if temp_unit == "C" else 482
+            temp = float(input(f"Enter roasting temperature (°{temp_unit}, max {max_temp}): "))
+            
+            if temp_unit == "C" and temp > 250:
                 print("❌ Temperature too high. Maximum is 250°C for roasting.")
                 return
+            elif temp_unit == "F" and temp > 482:
+                print("❌ Temperature too high. Maximum is 482°F for roasting.")
+                return
+            
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
+            
+            temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
             
             command = {
                 "command": "CMD_APO_START",
@@ -524,7 +555,7 @@ class AnovaController:
                                         "mode": "dry",
                                         "dry": {
                                             "setpoint": {
-                                                "celsius": temp
+                                                "celsius": temp_celsius
                                             }
                                         }
                                     },
@@ -645,16 +676,25 @@ class AnovaController:
     async def start_oven_steam(self):
         """Start steam cooking on APO device"""
         try:
-            temp = float(input("Enter temperature (°C, max 250): "))
-            if temp > 250:
+            temp_unit = self.temperature_unit
+            max_temp = 250 if temp_unit == "C" else 482
+            temp = float(input(f"Enter temperature (°{temp_unit}, max {max_temp}): "))
+            
+            if temp_unit == "C" and temp > 250:
                 print("❌ Temperature too high. Maximum is 250°C for steam cooking.")
                 return
+            elif temp_unit == "F" and temp > 482:
+                print("❌ Temperature too high. Maximum is 482°F for steam cooking.")
+                return
+            
             humidity = int(input("Enter humidity percentage (0-100): "))
             if humidity < 0 or humidity > 100:
                 print("❌ Humidity must be between 0-100%.")
                 return
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
+            
+            temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
             
             command = {
                 "command": "CMD_APO_START",
@@ -667,10 +707,10 @@ class AnovaController:
                                 "do": {
                                     "type": "cook",
                                     "fan": {
-                                        "speed": 50
+                                        "speed": 100
                                     },
                                     "heatingElements": {
-                                        "top": {"on": True},
+                                        "top": {"on": False},
                                         "bottom": {"on": True},
                                         "rear": {"on": True}
                                     },
@@ -681,7 +721,7 @@ class AnovaController:
                                         "mode": "dry",
                                         "dry": {
                                             "setpoint": {
-                                                "celsius": temp
+                                                "celsius": temp_celsius
                                             }
                                         }
                                     },
@@ -915,7 +955,14 @@ class AnovaController:
                 if isinstance(payload, dict):
                     temp = payload.get("temperature", "N/A")
                     status = payload.get("status", payload.get("state", "N/A"))
-                    print(f"[{timestamp}] STATE: Temp: {temp}°C, Status: {status}")
+                    if temp != "N/A" and isinstance(temp, (int, float)):
+                        if self.temperature_unit == "F":
+                            temp_display = f"{temp * 9/5 + 32:.1f}°F"
+                        else:
+                            temp_display = f"{temp}°C"
+                    else:
+                        temp_display = "N/A"
+                    print(f"[{timestamp}] STATE: Temp: {temp_display}, Status: {status}")
                 else:
                     print(f"[{timestamp}] {command}: {payload}")
             else:
