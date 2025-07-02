@@ -1,6 +1,10 @@
+<img src="https://developer.anovaculinary.com/img/logo.svg" alt="Anova Developers" width="350"/>
+
 # Anova WiFi Device Controller
 
 Interactive Python terminal for controlling Anova WiFi devices including Precision Cookers (APC) and Precision Ovens (APO).
+
+<img src="https://developer.anovaculinary.com/img/Anova_Precision_Wifi_Devices.jpg" alt="Anova Precision® Cookers and Anova Precision™ Ovens" />
 
 ## Features
 
