@@ -1,15 +1,9 @@
-#!/usr/bin/env python3
-"""
-Interactive Python terminal for controlling Anova WiFi devices
-Supports both Anova Precision Cookers (APC) and Anova Precision Ovens (APO)
-"""
-
 import asyncio
-import websockets
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
-import sys
+from datetime import datetime
+
+import websockets
 
 
 class AnovaController:
@@ -27,13 +21,13 @@ class AnovaController:
         """Connect to Anova websocket with authentication"""
         self.token = token
         uri = f"wss://devices.anovaculinary.io?token={token}&supportedAccessories=APC,APO"
-        
+
         try:
             self.websocket = await websockets.connect(uri)
-            
+
             # Start background message listener immediately - it will handle device discovery
             self.listener_task = asyncio.create_task(self.continuous_message_listener())
-            
+
             # Wait for device discovery messages to be captured by background listener
             await self.wait_for_device_discovery()
             return True
@@ -44,17 +38,17 @@ class AnovaController:
     async def wait_for_device_discovery(self):
         """Wait for device discovery by checking message history"""
         print("🔍 Discovering devices...")
-        
+
         try:
             # Wait for device discovery messages to appear in history
             timeout = 5
             start_time = asyncio.get_event_loop().time()
-            
+
             while (asyncio.get_event_loop().time() - start_time) < timeout:
                 # Check message history for device lists
                 for msg in self.message_history:
                     data = msg["data"]
-                    
+
                     if data.get("command") == "EVENT_APC_WIFI_LIST" and "payload" in data:
                         for device in data["payload"]:
                             # Check if device already exists
@@ -65,7 +59,7 @@ class AnovaController:
                                     "type": "APC",
                                     "device_type": device.get("type", "unknown")
                                 })
-                    
+
                     elif data.get("command") == "EVENT_APO_WIFI_LIST" and "payload" in data:
                         for device in data["payload"]:
                             # Check if device already exists
@@ -76,14 +70,14 @@ class AnovaController:
                                     "type": "APO",
                                     "device_type": device.get("type", "unknown")
                                 })
-                
+
                 # If we found devices, break early
                 if self.devices:
                     break
-                    
+
                 # Wait a bit before checking again
                 await asyncio.sleep(0.1)
-                    
+
         except Exception as e:
             print(f"Error waiting for device discovery: {e}")
 
@@ -99,24 +93,24 @@ class AnovaController:
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     last_message_time = datetime.now()
                     data = json.loads(message)
-                    
+
                     # Store message with timestamp
                     self.message_history.append({
                         "timestamp": timestamp,
                         "data": data,
                         "raw": message
                     })
-                    
+
                     # Process device discovery messages
                     await self.process_device_discovery(data)
-                
+
                 except asyncio.TimeoutError:
                     # No message received in 30 seconds
                     now = datetime.now()
                     time_since_last = (now - last_message_time).total_seconds()
                     print(f"⏰ No websocket messages for {time_since_last:.0f} seconds (listener still active)")
                     continue
-                
+
         except websockets.exceptions.ConnectionClosed:
             print("📡 WebSocket connection closed")
         except Exception as e:
@@ -136,7 +130,7 @@ class AnovaController:
                         "type": "APC",
                         "device_type": device.get("type", "unknown")
                     })
-        
+
         elif data.get("command") == "EVENT_APO_WIFI_LIST" and "payload" in data:
             for device in data["payload"]:
                 # Check if device already exists
@@ -153,22 +147,23 @@ class AnovaController:
         if not self.devices:
             print("❌ No devices found. Make sure your devices are connected to WiFi and paired with your account.")
             return False
-            
+
         print("\n📱 Discovered devices:")
         for i, device in enumerate(self.devices, 1):
             print(f"{i}. {device['name']} ({device['type']}) - ID: {device['id']}")
-        
+
         return True
 
     def select_device(self):
         """Let user select a device"""
         if not self.display_devices():
             return False
-            
+
         try:
-            choice = input("\nSelect device number: ").strip()
-            device_index = int(choice) - 1
-            
+            # choice = input("\nSelect device number: ").strip()
+            # device_index = int(choice) - 1
+            device_index = 0
+
             if 0 <= device_index < len(self.devices):
                 self.selected_device = self.devices[device_index]
                 self.device_type = self.selected_device["type"]
@@ -195,45 +190,45 @@ class AnovaController:
         try:
             # Record message count before sending
             initial_count = len(self.message_history)
-            
+
             # Send the command
             await self.websocket.send(json.dumps(command_data))
             print(f"📤 Sent command: {command_data['command']}")
             print("⏳ Waiting for response...")
-            
+
             # Show timeout warning if requested
             if show_timeout_warning:
                 print("⚠️ This command can take up to 30 seconds to receive a response")
-            
+
             # Wait for RESPONSE messages with timeout
             start_time = asyncio.get_event_loop().time()
             while (asyncio.get_event_loop().time() - start_time) < timeout:
                 # Check for new messages since we sent the command
                 if len(self.message_history) > initial_count:
                     new_messages = self.message_history[initial_count:]
-                    
+
                     # Look for RESPONSE commands in new messages
                     for msg in new_messages:
                         data = msg["data"]
                         command = data.get("command", "")
-                        
+
                         # Check if this is a response message (not a state update)
                         if command.startswith("RESPONSE") or \
                            (command.startswith("CMD_") and not command.startswith("CMD_STATE")) or \
                            command == "EVENT_EXPORT_READY":
-                            
+
                             print("\n📨 Response received:")
                             print("-" * 40)
                             self.display_formatted_message(msg)
                             print("-" * 40)
                             return True
-                
+
                 await asyncio.sleep(0.1)
-            
+
             # Timeout reached
             print(f"⏰ No response received within {timeout} seconds")
             return False
-            
+
         except Exception as e:
             print(f"❌ Error sending command: {e}")
             return False
@@ -262,7 +257,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-        
+
         await self.send_command_and_wait_for_response(command)
 
     async def set_temperature_unit(self):
@@ -294,7 +289,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-        
+
         result = await self.send_command_and_wait_for_response(command)
         if result:
             self.temperature_unit = unit
@@ -306,19 +301,19 @@ class AnovaController:
             temp_unit = self.temperature_unit
             max_temp = 95 if temp_unit == "C" else 203
             temp = float(input(f"Enter target temperature (°{temp_unit}, max {max_temp}): "))
-            
+
             if temp_unit == "C" and temp > 95:
                 print("❌ Temperature too high. Maximum is 95°C for sous vide.")
                 return
             elif temp_unit == "F" and temp > 203:
                 print("❌ Temperature too high. Maximum is 203°F for sous vide.")
                 return
-            
+
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
-            
+
             temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
-            
+
             command = {
                 "command": "CMD_APC_START",
                 "requestId": self.generate_uuid(),
@@ -330,7 +325,7 @@ class AnovaController:
                     "timer": timer_seconds
                 }
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -341,19 +336,19 @@ class AnovaController:
             temp_unit = self.temperature_unit
             max_temp = 100 if temp_unit == "C" else 212
             temp = float(input(f"Enter target temperature (°{temp_unit}, max {max_temp}): "))
-            
+
             if temp_unit == "C" and temp > 100:
                 print("❌ Temperature too high. Maximum is 100°C for wet bulb sous vide.")
                 return
             elif temp_unit == "F" and temp > 212:
                 print("❌ Temperature too high. Maximum is 212°F for wet bulb sous vide.")
                 return
-            
+
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
-            
+
             temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
-            
+
             command = {
                 "command": "CMD_APO_START",
                 "payload": {
@@ -419,7 +414,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -432,7 +427,7 @@ class AnovaController:
                 print("❌ Temperature too high. Maximum is 212°F for wet bulb sous vide.")
                 return
             temp_c = (temp_f - 32) * 5/9
-            
+
             command = {
                 "command": "CMD_APO_START",
                 "payload": {
@@ -506,7 +501,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -517,19 +512,19 @@ class AnovaController:
             temp_unit = self.temperature_unit
             max_temp = 250 if temp_unit == "C" else 482
             temp = float(input(f"Enter roasting temperature (°{temp_unit}, max {max_temp}): "))
-            
+
             if temp_unit == "C" and temp > 250:
                 print("❌ Temperature too high. Maximum is 250°C for roasting.")
                 return
             elif temp_unit == "F" and temp > 482:
                 print("❌ Temperature too high. Maximum is 482°F for roasting.")
                 return
-            
+
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
-            
+
             temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
-            
+
             command = {
                 "command": "CMD_APO_START",
                 "payload": {
@@ -589,7 +584,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -602,7 +597,7 @@ class AnovaController:
                 print("❌ Temperature too high. Maximum is 482°F for roasting.")
                 return
             temp_c = (temp_f - 32) * 5/9
-            
+
             command = {
                 "command": "CMD_APO_START",
                 "payload": {
@@ -668,7 +663,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -679,23 +674,23 @@ class AnovaController:
             temp_unit = self.temperature_unit
             max_temp = 250 if temp_unit == "C" else 482
             temp = float(input(f"Enter temperature (°{temp_unit}, max {max_temp}): "))
-            
+
             if temp_unit == "C" and temp > 250:
                 print("❌ Temperature too high. Maximum is 250°C for steam cooking.")
                 return
             elif temp_unit == "F" and temp > 482:
                 print("❌ Temperature too high. Maximum is 482°F for steam cooking.")
                 return
-            
+
             humidity = int(input("Enter humidity percentage (0-100): "))
             if humidity < 0 or humidity > 100:
                 print("❌ Humidity must be between 0-100%.")
                 return
             timer_minutes = float(input("Enter cook time (minutes): "))
             timer_seconds = int(timer_minutes * 60)
-            
+
             temp_celsius = temp if temp_unit == "C" else (temp - 32) * 5/9
-            
+
             command = {
                 "command": "CMD_APO_START",
                 "payload": {
@@ -761,7 +756,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -778,9 +773,9 @@ class AnovaController:
             if humidity < 0 or humidity > 100:
                 print("❌ Humidity must be between 0-100%.")
                 return
-            
+
             command = {
-                "command": "CMD_APO_START", 
+                "command": "CMD_APO_START",
                 "payload": {
                     "id": self.selected_device["id"],
                     "payload": {
@@ -852,7 +847,7 @@ class AnovaController:
                 },
                 "requestId": self.generate_uuid()
             }
-            
+
             await self.send_command_and_wait_for_response(command)
         except ValueError:
             print("❌ Invalid input. Please enter numeric values.")
@@ -861,15 +856,15 @@ class AnovaController:
         """Export telemetry data from device"""
         print("📊 Export telemetry data")
         print("Note: Date range cannot exceed 14 days, and start date cannot be more than 90 days in the past")
-        
+
         try:
             start_date = input("Enter start date (YYYY-MM-DD): ").strip()
             end_date = input("Enter end date (YYYY-MM-DD): ").strip()
-            
+
             # Validate date format
             datetime.strptime(start_date, "%Y-%m-%d")
             datetime.strptime(end_date, "%Y-%m-%d")
-            
+
             command = {
                 "command": "CMD_EXPORT_TELEMETRY",
                 "requestId": self.generate_uuid(),
@@ -883,7 +878,7 @@ class AnovaController:
                     }
                 }
             }
-            
+
             await self.send_command_and_wait_for_response(command, timeout=30, show_timeout_warning=True)
         except ValueError:
             print("❌ Invalid date format. Use YYYY-MM-DD")
@@ -891,19 +886,19 @@ class AnovaController:
     async def show_message_stream(self):
         print("Message History")
         print("=" * 60)
-        
+
         # Show recent message history first
         if self.message_history:
             recent_messages = self.message_history[-10:]  # Show last 10 messages
             for msg in recent_messages:
                 self.display_formatted_message(msg)
-        
+
         print("=" * 60)
         print("🔴 LIVE - New messages will appear below - Press Enter to return to menu")
-        
+
         # Track the last message count to detect new messages
         last_count = len(self.message_history)
-        
+
         # Create concurrent tasks for message monitoring and user input
         async def monitor_messages():
             nonlocal last_count
@@ -916,16 +911,16 @@ class AnovaController:
                         self.display_formatted_message(msg)
                     last_count = current_count
                 await asyncio.sleep(0.1)
-        
+
         async def wait_for_user_input():
             loop = asyncio.get_event_loop()
             # Use run_in_executor to make input() non-blocking
             await loop.run_in_executor(None, input)
-        
+
         # Run both tasks concurrently, return when user input is received
         monitor_task = asyncio.create_task(monitor_messages())
         input_task = asyncio.create_task(wait_for_user_input())
-        
+
         try:
             # Wait for user to press Enter
             await input_task
@@ -938,7 +933,7 @@ class AnovaController:
                 await monitor_task
             except asyncio.CancelledError:
                 pass
-        
+
         print("Exiting message stream...")
 
     def display_formatted_message(self, msg):
@@ -946,7 +941,7 @@ class AnovaController:
         timestamp = msg["timestamp"]
         data = msg["data"]
         command = data.get("command", "UNKNOWN")
-        
+
         # Format different message types
         if command.startswith("EVENT_"):
             if "STATE" in command:
@@ -979,7 +974,7 @@ class AnovaController:
         else:
             # Unknown format - show raw
             print(f"[{timestamp}] RAW: {command}")
-        
+
         # Add newline between messages
         print()
 
@@ -1000,7 +995,7 @@ class AnovaController:
             print("3. Start roasting (dry bulb)")
             print("4. Start steam cooking")
             print("5. Stop cooking")
-            print("6. Set temperature unit") 
+            print("6. Set temperature unit")
             print("7. Export telemetry data")
             print("0. Exit")
 
@@ -1054,7 +1049,7 @@ class AnovaController:
                 return False
             else:
                 print("❌ Invalid choice")
-        
+
         return True
 
     async def run_interactive_menu(self):
@@ -1063,7 +1058,7 @@ class AnovaController:
             while True:
                 await self.show_menu()
                 choice = input("\nSelect option: ").strip()
-                
+
                 result = await self.handle_menu_choice(choice)
                 if result == False:
                     print("👋 Exiting...")
@@ -1085,7 +1080,7 @@ class AnovaController:
     async def close(self):
         """Close websocket connection"""
         print("🔄 Cleaning up connections...")
-        
+
         # Cancel background listener task
         if self.listener_task and not self.listener_task.done():
             print("🛑 Stopping background listener...")
@@ -1094,7 +1089,7 @@ class AnovaController:
                 await asyncio.wait_for(self.listener_task, timeout=2.0)
             except (asyncio.CancelledError, asyncio.TimeoutError):
                 pass
-        
+
         # Close websocket connection
         if self.websocket:
             print("🔌 Closing websocket...")
@@ -1102,58 +1097,5 @@ class AnovaController:
                 await self.websocket.close()
             except Exception as e:
                 print(f"⚠️ Error closing websocket: {e}")
-        
+
         print("✅ Cleanup complete")
-
-
-async def main():
-    print("🔥 Anova WiFi Device Controller")
-    print("=" * 40)
-    
-    # Get Personal Access Token
-    print("\n🔑 Personal Access Token Required")
-    print("Find your token in the Anova Oven app: More → Developer → Personal Access Tokens")
-    print("(Note: Sous Vide users should also download the Oven app to generate tokens)")
-    
-    token = input("\nEnter your Personal Access Token (starts with 'anova-'): ").strip()
-    
-    if not token.startswith("anova-"):
-        print("❌ Invalid token format. Token should start with 'anova-'")
-        return
-    
-    controller = AnovaController()
-    
-    try:
-        # Connect to websocket
-        if not await controller.connect(token):
-            return
-        
-        # Select device
-        if not controller.select_device():
-            return
-        
-        print(f"\n🚀 Ready to control your {controller.selected_device['name']}!")
-        print("Keep this connection open to send commands...")
-        
-        # Run interactive menu (background listener already started)
-        await controller.run_interactive_menu()
-        
-    except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    finally:
-        # Cleanup will be handled by run_interactive_menu
-        pass
-
-
-if __name__ == "__main__":
-    # Check if websockets is available
-    try:
-        import websockets
-    except ImportError:
-        print("❌ Missing required dependency: websockets")
-        print("Install with: pip install websockets")
-        sys.exit(1)
-    
-    asyncio.run(main())

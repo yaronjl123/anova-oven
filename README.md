@@ -87,7 +87,7 @@ cd /path/to/developer-docs
 source anova_env/bin/activate
 
 # Run the script
-python3 anova_interactive.py
+python3 main.py
 
 # When done, deactivate virtual environment:
 deactivate
