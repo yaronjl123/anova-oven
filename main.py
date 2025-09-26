@@ -7,48 +7,59 @@ Supports both Anova Precision Cookers (APC) and Anova Precision Ovens (APO)
 import asyncio
 import sys
 
-from controller import AnovaController
+import commands
+from client import AnovaController
+import models
 
 
 async def main():
-    print("🔥 Anova WiFi Device Controller")
-    print("=" * 40)
-    
-    # Get Personal Access Token
-    print("\n🔑 Personal Access Token Required")
-    print("Find your token in the Anova Oven app: More → Developer → Personal Access Tokens")
-    print("(Note: Sous Vide users should also download the Oven app to generate tokens)")
-    
-    token = input("\nEnter your Personal Access Token (starts with 'anova-'): ").strip()
-    
-    if not token.startswith("anova-"):
-        print("❌ Invalid token format. Token should start with 'anova-'")
-        return
-    
-    controller = AnovaController()
-    
+    # controller = AnovaController()
+    client = AnovaController(token="anova-eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiI0MDBRaXNsVjRCYkNzYXN2U3hXNENvZHJ6RUEyIiwiY3JlYXRlZEF0IjoxNzU4ODg0MDE2NDUyfQ.gIxNMZ8njgpIAicIAr7UzA9ujV2OLtnSNuBaeT8KWVY")
+
     try:
-        # Connect to websocket
-        if not await controller.connect(token):
+        if not await client.connect():
             return
         
         # Select device
-        if not controller.select_device():
+        if not client.select_device():
             return
         
-        print(f"\n🚀 Ready to control your {controller.selected_device['name']}!")
+        print(f"\n🚀 Ready to control your {client.selected_device['name']}!")
         print("Keep this connection open to send commands...")
-        
-        # Run interactive menu (background listener already started)
-        await controller.run_interactive_menu()
-        
-    except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
+
+        cook = models.Cook(stages=[
+            models.Stage(
+                title="first",
+                description="1st stage",
+                type=models.Stage.Type.PREHEAT,
+                userActionRequired=False,
+                temperatureBulbs=models.TempBulb.wet_bulb(90),
+                heatingElements=models.HeatingElements.top_and_bottom(),
+                fan=models.Fan(speed=100),
+                probe=models.Probe(temp=60),
+                stageTransitionType=models.Stage.Transition.AUTO,
+                steamGenerators=models.SteamGenerators.sous_vide(30)
+            ),
+            models.Stage(
+                title="second",
+                description="2nd stage",
+                type=models.Stage.Type.COOK,
+                userActionRequired=True,
+                temperatureBulbs=models.TempBulb.dry_bulb(120),
+                heatingElements=models.HeatingElements.top_only(),
+                fan=models.Fan(speed=50),
+                probe=models.Probe(temp=60),
+                stageTransitionType=models.Stage.Transition.MANUAL,
+                steamGenerators=models.SteamGenerators.no_steam()
+            )
+        ])
+
+        command = commands.Command.start(device_id=client.selected_device['id'], cook=cook)
+
+        await client.send_command_and_wait_for_response(command_data=command)
+
     except Exception as e:
         print(f"❌ Error: {e}")
-    finally:
-        # Cleanup will be handled by run_interactive_menu
-        pass
 
 
 if __name__ == "__main__":
